@@ -43,7 +43,7 @@ Mat Dip1::doSomethingThatMyTutorIsGonnaLike(const Mat &img)
 	}
 
 	//Step 1-1: minimum filter
-	//https://blog.csdn.net/cgqzu/article/details/79888115?utm_source=blogxgwz1
+	//Reference: https://blog.csdn.net/cgqzu/article/details/79888115?utm_source=blogxgwz1
 	int windowsize = 15;
 	r = (windowsize - 1) / 2; //radius
 	Mat dst_ex;
@@ -67,6 +67,8 @@ Mat Dip1::doSomethingThatMyTutorIsGonnaLike(const Mat &img)
 			dark_channel_img.at<uchar>(i - r, j - r) = minVal;
 		}
 	}
+
+	imwrite("dark_channel.jpg", dark_channel_img);
 
 	//Step 2: computer the atmospheric light A
 	int darksize = rows * cols;
@@ -178,17 +180,17 @@ Mat Dip1::doSomethingThatMyTutorIsGonnaLike(const Mat &img)
 	float t0 = 0.1;
 	Mat final_img = Mat::zeros(rows, cols, CV_8UC3);
 	int val = 0;
+	copyMakeBorder(img, dst_ex, r, r, r, r, BORDER_CONSTANT, Scalar(255));
 	for (int i = 0; i < 3; i++)
 	{
-		for (int k = r; k < rows - r; k++)
+		for (int k = 0; k < rows; k++)
 		{
 			const float *inData = trans.ptr<float>(k);
-			inData += r;
-			const uchar *srcData = img.ptr<uchar>(k);
+			const uchar *srcData = dst_ex.ptr<uchar>(k + r);
 			srcData += r * 3 + i;
 			uchar *outData = final_img.ptr<uchar>(k);
-			outData += r * 3 + i;
-			for (int l = r; l < cols - r; l++)
+			outData += i;
+			for (int l = 0; l < cols; l++)
 			{
 				t = *inData++;
 				t = t > t0 ? t : t0;
