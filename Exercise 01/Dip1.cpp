@@ -68,7 +68,7 @@ Mat Dip1::doSomethingThatMyTutorIsGonnaLike(const Mat &img)
 		}
 	}
 
-	imwrite("dark_channel.jpg", dark_channel_img);
+	//imwrite("dark_channel.jpg", dark_channel_img);
 
 	//Step 2: computer the atmospheric light A
 	int darksize = rows * cols;

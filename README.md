@@ -1,9 +1,9 @@
 # DIGITAL IMAGE PROCESSING
 ## Introduction
 
-Participants learn basic concepts, their theoretical foundation, and the most common algorithms used in digital image processing. After completing the module, participants understand strengths and limitations of different methods, are able to correctly and successfully apply methods and algorithms to real world problems, and are aware of performance criteria
+Participants learn basic concepts, their theoretical foundation, and the most common algorithms used in digital image processing. After completing the module, participants understand strengths and limitations of different methods, are able to correctly and successfully apply methods and algorithms to real world problems, and are aware of performance criteria.
 
-The homework will be programming exercises (C++ & OpenCV) that have to be handled in groups of 3-4 students. Please select below in which group you want to work in.
+The homework will be programming exercises (C++ & OpenCV) that have to be handled in groups of 3-4 students.
 
 ## Environment
 Ubuntu 16.04, OpenCV 3.4.3
