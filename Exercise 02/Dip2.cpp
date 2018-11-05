@@ -22,11 +22,22 @@ Mat Dip2::spatialConvolution(Mat &src, Mat &kernel)
 	int cols = src.cols;
 	Mat dst(rows, cols, CV_32FC1);
 	Mat src_padding(rows + kSize - 1, cols + kSize - 1, CV_32FC1);
+	Mat kernel_flipped(kernel.rows, kernel.cols, CV_32FC1);
 	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_CONSTANT, 0);
 
-	int i, j, m, n;
-	float temp;
+	int i, j;
+	int _r = 2 * r;
+	for (i = 0; i < kernel.rows; i++)
+	{
+		float *kf_data = kernel_flipped.ptr<float>(i);
+		for (j = 0; j < kernel.cols; j++)
+		{
+			*kf_data++ = kernel.at<float>(_r - i, _r - j); //Coordinates flipped
+		}
+	}
 
+	int m, n;
+	float temp;
 	for (i = 0; i < rows; i++)
 	{
 		float *dst_data = dst.ptr<float>(i);
@@ -37,12 +48,12 @@ Mat Dip2::spatialConvolution(Mat &src, Mat &kernel)
 			{
 				const float *data = src_padding.ptr<float>(i + m);
 				data += j;
-				const float *kernel_data = kernel.ptr<float>(m);
+				const float *kernel_flipped_data = kernel_flipped.ptr<float>(m);
 				for (n = 0; n < kSize; n++)
 				{
-					temp += (*data) * (*kernel_data);
+					temp += (*data) * (*kernel_flipped_data);
 					data++;
-					kernel_data++;
+					kernel_flipped_data++;
 				}
 			}
 			*dst_data = temp;
@@ -121,7 +132,7 @@ Mat Dip2::bilateralFilter(Mat &src, int kSize, double sigma)
 	int r = kSize / 2;
 	int rows = src.rows;
 	int cols = src.cols;
-	double sigma_space = 0.1;//(float)-4.5 / (r * r); //choose sigma = r/3: 3 sigma principle
+	double sigma_space = 0.1; //(float)-4.5 / (r * r); //choose sigma = r/3: 3 sigma principle
 	double sigma_color = -0.5 / (sigma * sigma);
 	Mat dst(rows, cols, CV_32FC1);
 	Mat src_padding(rows + kSize - 1, cols + kSize - 1, CV_32FC1);
@@ -175,8 +186,67 @@ return:  	filtered image
 */
 Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 {
+	int blockSize = 3; //Block for comparision
+	int rows = src.rows;
+	int cols = src.cols;
+	int r = searchSize / 2;
+	double _sigma = -0.5 / (sigma * sigma);
+	Mat src_padding(rows + searchSize - 1, cols + searchSize - 1, CV_32FC1);
+	Mat dst(rows, cols, CV_32FC1, Scalar::all(0));
+	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_CONSTANT, 0);
+	int i, j, m, n;
+	float Z; //Normalizing constant
 
-	return src.clone();
+	for (i = 0; i < rows; i++)
+	{
+		const float *src_data = src_padding.ptr<float>(i + r); //Central point
+		src_data += r;
+		float *dst_data = dst.ptr<float>(i);
+		for (j = 0; j < cols; j++)
+		{
+			Mat temp(searchSize, searchSize, CV_32FC1); //search zone
+			for (m = 0; m < searchSize; m++)
+			{
+				const float *_src_data = src_padding.ptr<float>(i + m);
+				float *temp_data = temp.ptr<float>(m);
+				for (n = 0; n < searchSize; n++)
+				{
+					*temp_data++ = *_src_data++;
+				}
+			}
+
+			//Compute weight matrix
+			Mat temp_avg = Dip2::averageFilter(temp, blockSize);
+			Mat weight(searchSize, searchSize, CV_32FC1);
+			Z = 0;
+			for (m = 0; m < searchSize; m++)
+			{
+				float *weight_data = weight.ptr<float>(m);
+				const float *temp_data = temp.ptr<float>(m);
+				for (n = 0; n < searchSize; n++)
+				{
+					*weight_data = std::exp((*temp_data - *src_data) * (*temp_data++ - *src_data) * _sigma);
+					Z += *weight_data++;
+				}
+			}
+
+			//Do convolution
+			for (m = 0; m < searchSize; m++)
+			{
+				const float *weight_data = weight.ptr<float>(m);
+				const float *_src_data = src_padding.ptr<float>(i + m);
+				_src_data += j;
+				for (n = 0; n < searchSize; n++)
+				{
+					*dst_data += (*weight_data++) * (*_src_data++);
+				}
+			}
+			*dst_data++ /= Z;
+			src_data++;
+		}
+	}
+
+	return dst;
 }
 
 /* *****************************
@@ -215,36 +285,14 @@ void Dip2::run(void)
 	// ==> "average" or "median"? Why?
 	// ==> try also "bilateral" (and if implemented "nlm")
 	cout << "reduce noise" << endl;
-	Mat restorated1 = noiseReduction(noise1, "bilateral", 5, 64);
-	Mat restorated2 = noiseReduction(noise2, "bilateral", 5, 64);
+	Mat restorated1 = noiseReduction(noise1, "nlm", 9, 32);
+	Mat restorated2 = noiseReduction(noise2, "nlm", 5, 8);
 	cout << "done" << endl;
 
 	// save images
 	cout << "save results" << endl;
-	imwrite("restorated1 - bilateral (5*5).jpg", restorated1);
-	imwrite("restorated2 - bilateral (5*5).jpg", restorated2);
-	cout << "done" << endl;
-
-	cout << "reduce noise" << endl;
-	restorated1 = noiseReduction(noise1, "average", 5);
-	restorated2 = noiseReduction(noise2, "average", 5);
-	cout << "done" << endl;
-
-	// save images
-	cout << "save results" << endl;
-	imwrite("restorated1 - average (5*5).jpg", restorated1);
-	imwrite("restorated2 - average (5*5).jpg", restorated2);
-	cout << "done" << endl;
-
-	cout << "reduce noise" << endl;
-	restorated1 = noiseReduction(noise1, "median", 5);
-	restorated2 = noiseReduction(noise2, "median", 5);
-	cout << "done" << endl;
-
-	// save images
-	cout << "save results" << endl;
-	imwrite("restorated1 - median (5*5).jpg", restorated1);
-	imwrite("restorated2 - median (5*5).jpg", restorated2);
+	imwrite("restorated1 - nlm (9, 32).jpg", restorated1);
+	imwrite("restorated2 - nlm (3, 5, 8).jpg", restorated2);
 	cout << "done" << endl;
 }
 

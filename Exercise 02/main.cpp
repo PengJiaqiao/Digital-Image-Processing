@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
    // in a second step try to restorate the noisy images
    if (strcmp(argv[1], "restorate") == 0){
       // run some test routines
-      //dip2.test();
+      dip2.test();
       // start processing
       dip2.run();
    }
