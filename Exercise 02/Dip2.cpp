@@ -186,13 +186,13 @@ return:  	filtered image
 */
 Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 {
-	int blockSize = 7; //Block for comparision
+	int blockSize = 5; //Block for comparision
 	int rows = src.rows;
 	int cols = src.cols;
 	int r = searchSize / 2;
 	int _r = blockSize / 2;
 	double _sigma = -0.5 / (sigma * sigma);
-	Mat src_padding(rows + searchSize - 1, cols + searchSize - 1, CV_32FC1);
+	Mat src_padding(rows + searchSize + blockSize - 2, cols + searchSize + blockSize - 2, CV_32FC1);
 	Mat dst(rows, cols, CV_32FC1, Scalar::all(0));
 	copyMakeBorder(src, src_padding, r + _r, r + _r, r + _r, r + _r, BORDER_CONSTANT, 0);
 	int i, j, m, n, k, l;
@@ -203,18 +203,6 @@ Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 		float *dst_data = dst.ptr<float>(i);
 		for (j = 0; j < cols; j++) //i, j used for computing the final output
 		{
-			Mat search(searchSize + 2 * _r, searchSize + 2 * _r, CV_32FC1); //search zone
-			for (m = 0; m < searchSize + 2 * _r; m++)						//m, n used for spliting search zone
-			{
-				const float *src_data = src_padding.ptr<float>(i + m + r);
-				src_data += r;
-				float *search_data = search.ptr<float>(m);
-				for (n = 0; n < searchSize + 2 * _r; n++)
-				{
-					*search_data++ = *src_data++;
-				}
-			}
-
 			Mat weight(searchSize, searchSize, CV_32FC1);
 			Z = 0;
 			for (m = 0; m < searchSize; m++) //Compute weight matrix
@@ -225,28 +213,28 @@ Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 					temp = 0;
 					for (k = 0; k < blockSize; k++) //k, l used for computing weight by pixels surrounding (m, n) in search zone
 					{
-						const float *_src_data = src_padding.ptr<float>(i + r + m); //Begin from the top-left of central block
-						_src_data += j + r;
-						const float *block_data = search.ptr<float>(m + k); //Begin from the top-left of each block in search zone
-						block_data += n;
+						const float *src_data = src_padding.ptr<float>(i + r + k); //Begin from the top-left of central block
+						src_data += j + r;
+						const float *block_data = src_padding.ptr<float>(i + m + k); //Begin from the top-left of each block in search zone
+						block_data += j + n;
 						for (l = 0; l < blockSize; l++)
 						{
-							temp += std::exp((*block_data - *_src_data) * (*block_data++ - *_src_data++) * _sigma);
+							temp += (*block_data - *src_data) * (*block_data++ - *src_data++);
 						}
 					}
-					*weight_data = temp;
+					*weight_data = std::exp(temp / (blockSize * blockSize) * _sigma);
 					Z += *weight_data++;
 				}
 			}
 
-			for (m = 0; m < searchSize; m++) //Do convolution
+			for (m = 0; m < searchSize; m++) //Compute the final output
 			{
 				const float *weight_data = weight.ptr<float>(m);
-				const float *_src_data = src_padding.ptr<float>(i + r + m);
-				_src_data += j + r;
+				const float *src_data = src_padding.ptr<float>(i + _r + m);
+				src_data += j + _r;
 				for (n = 0; n < searchSize; n++)
 				{
-					*dst_data += (*weight_data++) * (*_src_data++);
+					*dst_data += (*weight_data++) * (*src_data++);
 				}
 			}
 			*dst_data++ /= Z;
@@ -292,85 +280,14 @@ void Dip2::run(void)
 	// ==> "average" or "median"? Why?
 	// ==> try also "bilateral" (and if implemented "nlm")
 	cout << "reduce noise" << endl;
-	//Mat restorated1 = noiseReduction(noise1, "nlm", 9, 32);
-	Mat restorated2 = noiseReduction(noise2, "nlm", 21, 1);
+	Mat restorated1 = noiseReduction(noise1, "nlm", 35, 35);
+	Mat restorated2 = noiseReduction(noise2, "nlm", 35, 32);
 	cout << "done" << endl;
 
 	// save images
 	cout << "save results" << endl;
-	//imwrite("restorated1 - nlm (3, 9, 32).jpg", restorated1);
-	imwrite("restorated2 - nlm (7, 21, 1).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 2);
-	imwrite("restorated2 - nlm (7, 21, 2).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 4);
-	imwrite("restorated2 - nlm (7, 21, 4).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 6);
-	imwrite("restorated2 - nlm (7, 21, 6).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 8);
-	imwrite("restorated2 - nlm (7, 21, 8).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 56);
-	imwrite("restorated2 - nlm (7, 21, 56).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 64);
-	imwrite("restorated2 - nlm (7, 21, 64).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 72);
-	imwrite("restorated2 - nlm (7, 21, 72).jpg", restorated2);
-	cout << "done" << endl;
-	while (1)
-	{
-	};
-
-	restorated2 = noiseReduction(noise2, "nlm", 17, 32);
-	imwrite("restorated2 - nlm (7, 17, 32).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 17, 64);
-	imwrite("restorated2 - nlm (7, 17, 64).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 19, 32);
-	imwrite("restorated2 - nlm (7, 19, 32).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 19, 64);
-	imwrite("restorated2 - nlm (7, 19, 64).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 32);
-	imwrite("restorated2 - nlm (7, 21, 32).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 21, 64);
-	imwrite("restorated2 - nlm (7, 21, 64).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 23, 32);
-	imwrite("restorated2 - nlm (7, 23, 32).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 23, 64);
-	imwrite("restorated2 - nlm (7, 23, 64).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 25, 32);
-	imwrite("restorated2 - nlm (7, 25, 32).jpg", restorated2);
-	cout << "done" << endl;
-
-	restorated2 = noiseReduction(noise2, "nlm", 25, 64);
-	imwrite("restorated2 - nlm (7, 25, 64).jpg", restorated2);
+	imwrite("restorated1 - nlm (3, 35, 35).jpg", restorated1);
+	imwrite("restorated2 - nlm (5, 35, 32).jpg", restorated2);
 	cout << "done" << endl;
 }
 
