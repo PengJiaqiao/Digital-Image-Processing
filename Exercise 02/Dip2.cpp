@@ -14,6 +14,8 @@ src:     input image
 kernel:  filter kernel
 return:  convolution result
 */
+int blockSize; //Block for comparision
+
 Mat Dip2::spatialConvolution(Mat &src, Mat &kernel)
 {
 	int kSize = kernel.rows;
@@ -23,7 +25,7 @@ Mat Dip2::spatialConvolution(Mat &src, Mat &kernel)
 	Mat dst(rows, cols, CV_32FC1);
 	Mat src_padding(rows + kSize - 1, cols + kSize - 1, CV_32FC1);
 	Mat kernel_flipped(kernel.rows, kernel.cols, CV_32FC1);
-	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_CONSTANT, 0);
+	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_REPLICATE);
 
 	int i, j;
 	int _r = 2 * r;
@@ -91,7 +93,7 @@ Mat Dip2::medianFilter(Mat &src, int kSize)
 	int cols = src.cols;
 	Mat dst(rows, cols, CV_32FC1);
 	Mat src_padding(rows + kSize - 1, cols + kSize - 1, CV_32FC1);
-	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_CONSTANT, 0);
+	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_REPLICATE);
 	int i, j, m, n, count = 0;
 	int k_square = kSize * kSize;
 	float temp[k_square];
@@ -132,11 +134,11 @@ Mat Dip2::bilateralFilter(Mat &src, int kSize, double sigma)
 	int r = kSize / 2;
 	int rows = src.rows;
 	int cols = src.cols;
-	double sigma_space = 0.1; //(float)-4.5 / (r * r); //choose sigma = r/3: 3 sigma principle
+	double sigma_space = -0.1; //(float)-4.5 / (r * r); //choose sigma = r/3: 3 sigma principle
 	double sigma_color = -0.5 / (sigma * sigma);
 	Mat dst(rows, cols, CV_32FC1);
 	Mat src_padding(rows + kSize - 1, cols + kSize - 1, CV_32FC1);
-	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_CONSTANT, 0);
+	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_REPLICATE);
 
 	int i, j;
 	Mat spatial_kernel(kSize, kSize, CV_32FC1);
@@ -150,7 +152,7 @@ Mat Dip2::bilateralFilter(Mat &src, int kSize, double sigma)
 	}
 
 	int m, n, count = 0;
-	float temp = 0;
+	float exp, temp, Z, weight_max = 0; //Z: Normalizing constant
 	for (i = 0; i < rows; i++)
 	{
 		float *dst_data = dst.ptr<float>(i);
@@ -165,12 +167,19 @@ Mat Dip2::bilateralFilter(Mat &src, int kSize, double sigma)
 				const float *sk_data = spatial_kernel.ptr<float>(m);
 				for (n = 0; n < kSize; n++)
 				{
-					temp += (*_data) * (*sk_data++) * std::exp((*data - *_data) * (*data++ - *_data) * sigma_color);
+					exp = std::exp((*data - *_data) * (*data - *_data) * sigma_color);
+					if (exp == 1)
+						exp = weight_max;
+					else if(exp > weight_max)
+						weight_max = exp;
+					Z += (*sk_data) * exp;
+					temp += (*data++) * (*sk_data++) * exp;
 				}
 			}
-			*dst_data++ = (float)temp / (kSize * kSize);
+			*dst_data++ = (float)temp / Z;
 			_data++;
 			temp = 0;
+			Z = 0;
 		}
 	}
 
@@ -194,9 +203,9 @@ Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 	double _sigma = -0.5 / (sigma * sigma);
 	Mat src_padding(rows + searchSize + blockSize - 2, cols + searchSize + blockSize - 2, CV_32FC1);
 	Mat dst(rows, cols, CV_32FC1, Scalar::all(0));
-	copyMakeBorder(src, src_padding, r + _r, r + _r, r + _r, r + _r, BORDER_CONSTANT, 0);
+	copyMakeBorder(src, src_padding, r + _r, r + _r, r + _r, r + _r, BORDER_REPLICATE);
 	int i, j, m, n, k, l;
-	float Z, temp; //Z: Normalizing constant; temp: To compute weight
+	float Z, temp, weight_max; //Z: Normalizing constant; temp: Sum of Euclidean distance from each points in the block to the central block
 
 	for (i = 0; i < rows; i++)
 	{
@@ -205,6 +214,7 @@ Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 		{
 			Mat weight(searchSize, searchSize, CV_32FC1);
 			Z = 0;
+			weight_max = 0;
 			for (m = 0; m < searchSize; m++) //Compute weight matrix
 			{
 				float *weight_data = weight.ptr<float>(m);
@@ -223,9 +233,13 @@ Mat Dip2::nlmFilter(Mat &src, int searchSize, double sigma)
 						}
 					}
 					*weight_data = std::exp(temp / (blockSize * blockSize) * _sigma);
+					if (*weight_data != 1 && *weight_data > weight_max)
+						weight_max = *weight_data;
 					Z += *weight_data++;
 				}
 			}
+			weight.at<float>(r, r) = weight_max; //The weight of central point in the search zone (i , j)
+			Z -= 1 - weight_max;
 
 			for (m = 0; m < searchSize; m++) //Compute the final output
 			{
@@ -280,14 +294,94 @@ void Dip2::run(void)
 	// ==> "average" or "median"? Why?
 	// ==> try also "bilateral" (and if implemented "nlm")
 	cout << "reduce noise" << endl;
-	Mat restorated1 = noiseReduction(noise1, "nlm", 35, 35);
-	Mat restorated2 = noiseReduction(noise2, "nlm", 35, 32);
+	Mat restorated1 = noiseReduction(noise1, "nlm", 35, 26);
+	Mat restorated2 = noiseReduction(noise2, "nlm", 35, 26);
 	cout << "done" << endl;
 
 	// save images
 	cout << "save results" << endl;
-	imwrite("restorated1 - nlm (3, 35, 35).jpg", restorated1);
+	imwrite("restorated1 - nlm (5, 35, 26).jpg", restorated1);
+	imwrite("restorated2 - nlm (5, 35, 26).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 35, 28);
+	restorated2 = noiseReduction(noise2, "nlm", 35, 28);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (5, 35, 28).jpg", restorated1);
+	imwrite("restorated2 - nlm (5, 35, 28).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 35, 32);
+	restorated2 = noiseReduction(noise2, "nlm", 35, 32);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (5, 35, 32).jpg", restorated1);
 	imwrite("restorated2 - nlm (5, 35, 32).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 35, 36);
+	restorated2 = noiseReduction(noise2, "nlm", 35, 36);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (5, 35, 36).jpg", restorated1);
+	imwrite("restorated2 - nlm (5, 35, 36).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 7, 174);
+	restorated2 = noiseReduction(noise2, "nlm", 7, 112);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (7, 174).jpg", restorated1);
+	imwrite("restorated2 - nlm (7, 112).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 7, 180);
+	restorated2 = noiseReduction(noise2, "nlm", 7, 116);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (7, 180).jpg", restorated1);
+	imwrite("restorated2 - nlm (7, 116).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 7, 184);
+	restorated2 = noiseReduction(noise2, "nlm", 7, 120);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (7, 184).jpg", restorated1);
+	imwrite("restorated2 - nlm (7, 120).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 7, 188);
+	restorated2 = noiseReduction(noise2, "nlm", 7, 124);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (7, 188).jpg", restorated1);
+	imwrite("restorated2 - nlm (7, 124).jpg", restorated2);
+	cout << "done" << endl;
+
+	restorated1 = noiseReduction(noise1, "nlm", 7, 192);
+	restorated2 = noiseReduction(noise2, "nlm", 7, 128);
+	cout << "done" << endl;
+
+	// save images
+	cout << "save results" << endl;
+	imwrite("restorated1 - nlm (7, 192).jpg", restorated1);
+	imwrite("restorated2 - nlm (7, 128).jpg", restorated2);
 	cout << "done" << endl;
 }
 

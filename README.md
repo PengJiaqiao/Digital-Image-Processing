@@ -29,16 +29,11 @@ g++ -std=c++11 main.cpp Dip1.cpp `pkg-config --cflags --libs /usr/local/OpenCV-3
 **Figure 1-2:** Dark Channel    
 <img src="https://user-images.githubusercontent.com/26578566/47862781-3410a700-ddf6-11e8-8c38-178892b122e0.jpg" width="450">    
 **Figure 1-3:** Output    
-<img src="https://user-images.githubusercontent.com/26578566/47862946-85b93180-ddf6-11e8-9d31-8116507f17e9.jpg" width="450"> 
+<img src="https://user-images.githubusercontent.com/26578566/47862946-85b93180-ddf6-11e8-9d31-8116507f17e9.jpg" width="450">
 
 ### Exercise 02
 Implementation of Spatial Convolution, Average Filter, Median Filter and Bilateral Filter. Besides, Non-local Means filter is optional.   
-**Figure 2-1:** Original - Shot Noise - Average Filter - Median Filter - Bilateral Filter. (Kernel size is 5x5)    
-<img src="https://user-images.githubusercontent.com/26578566/47971508-95ed3d00-e092-11e8-8dc4-8b541df7f3ec.jpg" width="1547">
-**Figure 2-2:** Original - Gaussion Noise - Average Filter - Median Filter - Bilateral Filter. (Kernel size is 5x5)    
-<img src="https://user-images.githubusercontent.com/26578566/47971505-908ff280-e092-11e8-9825-ff1923f4c2f0.jpg" width="1547">   
-### TO DO
-● Implementation of Non-local Means Filter  
-● Implementation of Faster Median Filter  
-● Adjust parameter  
-● 每日一吸超越妹妹的颜
+**Figure 2-1:** Original - Shot Noise - Average Filter - Median Filter - Bilateral Filter - Non-local Means Filter.  
+<img src="https://user-images.githubusercontent.com/26578566/48384470-d419da80-e6ea-11e8-8d83-729eb953627e.jpg" width="1350">
+**Figure 2-2:** Original - Gaussion Noise - Average Filter - Median Filter - Bilateral Filter - Non-local Means Filter.   
+<img src="https://user-images.githubusercontent.com/26578566/48384518-15aa8580-e6eb-11e8-98da-9b791f12f34d.jpg" width="1350">   
