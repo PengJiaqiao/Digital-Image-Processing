@@ -41,7 +41,7 @@ Mat Dip3::createGaussianKernel(int kSize)
 	GaussianKernel = y.t() * x;
 	GaussianKernel *= 1 / (2 * pi * _sigma);
 
-	for (i = 0; i < r; i++)//Normalizing
+	for (i = 0; i < r; i++) //Normalizing
 	{
 		const float *dst = GaussianKernel.ptr<float>(i);
 		for (j = 0; j < kSize; j++)
@@ -63,9 +63,74 @@ return   circular shifted matrix
 */
 Mat Dip3::circShift(const Mat &in, int dx, int dy)
 {
-	
+	Mat dst(in.rows, in.cols, CV_32FC1);
+	int i, j;
+	/*Cut source image into 4 parts
+	0,0-----------------------------cols-1,0
+	-			      -			     	-
+	-				  -			     	-
+    -				  -			     	-
+	-				  -			     	-
+	----------cols-dx,rows-dy-----cols-1,rows-dy
+	-				  -			     	-
+	-				  -			     	-
+	-				  -			     	-
+	-				  -			     	-	
+	----------cols-dx,rows-1------cols-1,rows-1
 
-	return in;
+	Cut result image into 4 parts
+	0,0------------dx-1,0----------cols-1,0
+	-			      -			     	-
+	-				  -			     	-
+    -				  -			     	-
+	-				  -			     	-
+	0,dy-1--------dx-1,dy-1--------------
+	-				  -			     	-
+	-				  -			     	-
+	-				  -			     	-
+	-				  -			     	-	
+	-------------------------------------*/
+	for (i = 0; i < dy; i++)
+	{
+		const float *in_data = in.ptr<float>(in.rows - dy + i);
+		in_data += in.cols - dx;
+		float *dst_data = dst.ptr<float>(i);
+		for (j = 0; j < dx; j++)
+		{
+			*dst_data++ = *in_data++;
+		}
+	}
+	for (i = 0; i < dy; i++)
+	{
+		const float *in_data = in.ptr<float>(in.rows - dy + i);
+		float *dst_data = dst.ptr<float>(i);
+		dst_data += dx;
+		for (j = dx; j < in.cols; j++)
+		{
+			*dst_data++ = *in_data++;
+		}
+	}
+	for (i = dy; i < in.rows; i++)
+	{
+		const float *in_data = in.ptr<float>(i - dy);
+		in_data += in.cols - dx;
+		float *dst_data = dst.ptr<float>(i);
+		for (j = 0; j < dy; j++)
+		{
+			*dst_data++ = *in_data++;
+		}
+	}
+	for (i = dy; i < in.rows; i++)
+	{
+		const float *in_data = in.ptr<float>(i - dy);
+		float *dst_data = dst.ptr<float>(i);
+		dst_data += dx;
+		for (j = dx; j < in.cols; j++)
+		{
+			*dst_data++ = *in_data++;
+		}
+	}
+	return dst;
 }
 
 //Performes convolution by multiplication in frequency domain
@@ -225,9 +290,11 @@ return   enhanced image
 */
 Mat Dip3::run(const Mat &in, int smoothType, int size, double thresh, double scale)
 {
-	
-
-	return usm(in, smoothType, size, thresh, scale);
+	Mat img = imread("demo.jpg", 0);
+	img.convertTo(img, CV_32FC1);
+	imwrite("demo - gray.jpg",img);
+	Mat dst = circShift(img, 150, 550);
+	imwrite("demo - circular shift.jpg", dst);
 }
 
 // Performes smoothing operation by convolution
