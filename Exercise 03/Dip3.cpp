@@ -27,8 +27,7 @@ Mat Dip3::createGaussianKernel(int kSize)
 	float temp, sum = 0; //sum for Normalizing
 
 	float *dst = x.ptr<float>(0);
-	float *_dst = dst;
-	_dst += kSize - 1;
+	float *_dst = dst + kSize - 1;
 	for (i = 0; i < r; i++)
 	{
 		temp = std::exp(-0.5 * (std::pow(r - i, 2)) / _sigma);
@@ -41,7 +40,7 @@ Mat Dip3::createGaussianKernel(int kSize)
 	GaussianKernel = y.t() * x;
 	GaussianKernel *= 1 / (2 * pi * _sigma);
 
-	for (i = 0; i < r; i++) //Normalizing
+	for (i = 0; i < kSize; i++) //Normalizing
 	{
 		const float *dst = GaussianKernel.ptr<float>(i);
 		for (j = 0; j < kSize; j++)
@@ -68,12 +67,12 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 	/*Cut source image into 4 parts
 	0,0-----------------------------cols-1,0
 	-			      -			     	-
-	-				  -			     	-
+	-		 1	      -		   2     	-
     -				  -			     	-
 	-				  -			     	-
 	----------cols-dx,rows-dy-----cols-1,rows-dy
 	-				  -			     	-
-	-				  -			     	-
+	-		 3		  -		   4     	-
 	-				  -			     	-
 	-				  -			     	-	
 	----------cols-dx,rows-1------cols-1,rows-1
@@ -81,12 +80,12 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 	Cut result image into 4 parts
 	0,0------------dx-1,0----------cols-1,0
 	-			      -			     	-
-	-				  -			     	-
+	-		 4		  -		   3     	-
     -				  -			     	-
 	-				  -			     	-
 	0,dy-1--------dx-1,dy-1--------------
 	-				  -			     	-
-	-				  -			     	-
+	-		 2		  -		   1     	-
 	-				  -			     	-
 	-				  -			     	-	
 	-------------------------------------*/
@@ -100,6 +99,7 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 			*dst_data++ = *in_data++;
 		}
 	}
+
 	for (i = 0; i < dy; i++)
 	{
 		const float *in_data = in.ptr<float>(in.rows - dy + i);
@@ -110,6 +110,7 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 			*dst_data++ = *in_data++;
 		}
 	}
+
 	for (i = dy; i < in.rows; i++)
 	{
 		const float *in_data = in.ptr<float>(i - dy);
@@ -120,6 +121,7 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 			*dst_data++ = *in_data++;
 		}
 	}
+
 	for (i = dy; i < in.rows; i++)
 	{
 		const float *in_data = in.ptr<float>(i - dy);
@@ -130,6 +132,7 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 			*dst_data++ = *in_data++;
 		}
 	}
+
 	return dst;
 }
 
@@ -185,8 +188,11 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 		GaussianBlur(in, tmp, Size(floor(size / 2) * 2 + 1, floor(size / 2) * 2 + 1), size / 5., size / 5.);
 	}
 
-	// TO DO !!!
-
+	Mat edge = in - tmp;
+	threshold(edge, edge, thresh, 0, THRESH_TOZERO);
+	edge *= scale;
+	in += edge;
+	
 	return in;
 }
 
@@ -290,11 +296,14 @@ return   enhanced image
 */
 Mat Dip3::run(const Mat &in, int smoothType, int size, double thresh, double scale)
 {
-	Mat img = imread("demo.jpg", 0);
+	//I am wondering whether my teammates will check this code carefully
+	//Please DELETE YOUR NAME ONLY
+	//Fayanjuola, Ayotomiwa Augustus
+	//Long, Zhou
+	//Zhang, Liting
+	Mat img = imread("ycy.jpg", 0);
 	img.convertTo(img, CV_32FC1);
-	imwrite("demo - gray.jpg",img);
-	Mat dst = circShift(img, 150, 550);
-	imwrite("demo - circular shift.jpg", dst);
+	imwrite("result.jpg", usm(img, 0, 5, 0, 3));
 }
 
 // Performes smoothing operation by convolution
@@ -309,7 +318,7 @@ Mat Dip3::mySmooth(const Mat &in, int size, int type)
 
 	// create filter kernel
 	Mat kernel = createGaussianKernel(size);
-
+	
 	// perform convoltion
 	switch (type)
 	{
