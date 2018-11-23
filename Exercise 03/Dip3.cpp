@@ -16,39 +16,29 @@ return:    the generated filter kernel
 Mat Dip3::createGaussianKernel(int kSize)
 {
 	int r = kSize / 2;
-	int i, j;
 	Mat GaussianKernel(kSize, kSize, CV_32FC1);
 	//Compute two 1-dimensional Gaussian Filter and use matrix multiplication to get 2-dimensional Gaussian Filter
 	Mat x(1, kSize, CV_32FC1);
 	Mat y(1, kSize, CV_32FC1);
-	const float pi = 3.1415926;
 	const float sigma = (float)kSize / 5;
 	const float _sigma = sigma * sigma;
 	float temp, sum = 0; //sum for Normalizing
 
 	float *dst = x.ptr<float>(0);
 	float *_dst = dst + kSize - 1;
-	for (i = 0; i < r; i++)
+	for (int i = 0; i < r; i++)
 	{
 		temp = std::exp(-0.5 * (std::pow(r - i, 2)) / _sigma);
 		*dst++ = temp;
 		*_dst-- = temp;
+		sum += temp;
 	}
 	x.at<float>(0, r) = 1;
+	sum = sum * 2 + 1;
+	x /= sum;
 
 	y = x.clone();
 	GaussianKernel = y.t() * x;
-	GaussianKernel *= 1 / (2 * pi * _sigma);
-
-	for (i = 0; i < kSize; i++) //Normalizing
-	{
-		const float *dst = GaussianKernel.ptr<float>(i);
-		for (j = 0; j < kSize; j++)
-		{
-			sum += *dst++;
-		}
-	}
-	GaussianKernel /= sum;
 
 	return GaussianKernel;
 }
@@ -87,16 +77,16 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 	-				  -			     	-
 	-				  -			     	-	
 	-------------------------------------*/
-	Mat dst(in.rows, in.cols, CV_32FC1);
+	Mat dst(in.size(), CV_32FC1);
 	int x, y;
 	// Adjust parameters
-	if (dx > 0)
+	if (dx >= 0)
 		x = dx % in.cols;
-	if (dy > 0)
-		y = dy % in.rows;
-	if (dx < 0)
+	else
 		x = dx % in.cols + in.cols;
-	if (dy < 0)
+	if (dy >= 0)
+		y = dy % in.rows;
+	else
 		y = dy % in.rows + in.rows;
 
 	Mat tmp0, tmp1, tmp2, tmp3;
@@ -125,7 +115,7 @@ return   output image
 Mat Dip3::frequencyConvolution(const Mat &in, const Mat &kernel)
 {
 	// Generate padding kernel with the same size of origin image
-	Mat kernel_padding(in.rows, in.cols, CV_32FC1);
+	Mat kernel_padding(in.size(), CV_32FC1);
 	int r_top, r_bottom, r_left, r_right;
 	r_top = (in.rows - kernel.rows) / 2;
 	r_bottom = in.rows - kernel.rows - r_top;
@@ -142,14 +132,14 @@ Mat Dip3::frequencyConvolution(const Mat &in, const Mat &kernel)
 	Mat in_planes[] = {Mat_<float>(in), Mat::zeros(in.size(), CV_32F)};
 	Mat in_complex;
 	merge(in_planes, 2, in_complex);
-	in_complex /= in.cols*in.rows;
+	in_complex /= in.cols * in.rows;
 
 	dft(in_complex, in_complex, DFT_COMPLEX_OUTPUT);
 	dft(kernel_complex, kernel_complex, DFT_COMPLEX_OUTPUT);
 	Mat dst;
 	mulSpectrums(in_complex, kernel_complex, dst, 0);
 	dft(dst, dst, DFT_INVERSE | DFT_REAL_OUTPUT);
-		
+
 	return dst;
 }
 
@@ -167,7 +157,7 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 {
 
 	// some temporary images
-	Mat tmp(in.rows, in.cols, CV_32FC1);
+	Mat tmp(in.size(), CV_32FC1);
 
 	// calculate edge enhancement
 
@@ -191,6 +181,23 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 		GaussianBlur(in, tmp, Size(floor(size / 2) * 2 + 1, floor(size / 2) * 2 + 1), size / 5., size / 5.);
 	}
 
+	threshold(tmp, tmp, 255, 0, THRESH_TRUNC);
+	switch (type)
+	{
+	case 0:
+		imwrite("spatialDomain.jpg", tmp);
+		break;
+	case 1:
+		imwrite("frequencyDomain.jpg", tmp);
+		break;
+	case 2:
+		imwrite("sperableFilters.jpg", tmp);
+		break;
+	case 3:
+		imwrite("integralImage.jpg", tmp);
+		break;
+	}
+
 	Mat edge = in - tmp;
 	threshold(edge, edge, thresh, 0, THRESH_TOZERO);
 	edge *= scale;
@@ -207,48 +214,42 @@ return:  convolution result
 */
 Mat Dip3::spatialConvolution(const Mat &src, const Mat &kernel)
 {
-	int kSize = kernel.rows;
-	int r = (kSize - 1) / 2;
-	int rows = src.rows;
-	int cols = src.cols;
-	Mat dst(rows, cols, CV_32FC1);
-	Mat src_padding(rows + kSize - 1, cols + kSize - 1, CV_32FC1);
-	Mat kernel_flipped(kernel.rows, kernel.cols, CV_32FC1);
-	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_REPLICATE);
+	Mat dst(src.size(), CV_32FC1);
+	Mat kernel_flipped(kernel.size(), CV_32FC1);
+	Mat src_padding(src.rows + kernel.rows - 1, src.cols + kernel.cols - 1, CV_32FC1);
+	copyMakeBorder(src, src_padding, kernel.rows / 2, kernel.rows / 2, kernel.cols / 2, kernel.cols / 2, BORDER_REPLICATE);
 
-	int i, j;
-	int _r = 2 * r;
+	int i, j, m, n;
+	float temp;
+	// Generate a flipped kernel first
 	for (i = 0; i < kernel.rows; i++)
 	{
-		float *kf_data = kernel_flipped.ptr<float>(i);
+		float *kernel_data = kernel_flipped.ptr<float>(i);
+		const float *kernel_origin = kernel.ptr<float>(kernel.rows - i - 1);
+		kernel_origin += kernel.cols - 1;
 		for (j = 0; j < kernel.cols; j++)
 		{
-			*kf_data++ = kernel.at<float>(_r - i, _r - j); //Coordinates flipped
+			*kernel_data++ = *kernel_origin--; //Coordinates flipped
 		}
 	}
 
-	int m, n;
-	float temp;
-	for (i = 0; i < rows; i++)
+	for (i = 0; i < dst.rows; i++)
 	{
 		float *dst_data = dst.ptr<float>(i);
-		for (j = 0; j < cols; j++)
+		for (j = 0; j < dst.cols; j++)
 		{
 			temp = 0;
-			for (m = 0; m < kSize; m++)
+			for (m = 0; m < kernel.rows; m++)
 			{
-				const float *data = src_padding.ptr<float>(i + m);
-				data += j;
-				const float *kernel_flipped_data = kernel_flipped.ptr<float>(m);
-				for (n = 0; n < kSize; n++)
+				const float *src_data = src_padding.ptr<float>(i + m);
+				src_data += j;
+				const float *kernel_data = kernel_flipped.ptr<float>(m);
+				for (n = 0; n < kernel.cols; n++)
 				{
-					temp += (*data) * (*kernel_flipped_data);
-					data++;
-					kernel_flipped_data++;
+					temp += (*src_data++) * (*kernel_data++);
 				}
 			}
-			*dst_data = temp;
-			dst_data++;
+			*dst_data++ = temp;
 		}
 	}
 
@@ -263,10 +264,26 @@ return:  convolution result
 */
 Mat Dip3::seperableFilter(const Mat &src, int size)
 {
+	int r = size / 2;
+	Mat filter(1, size, CV_32FC1); // one-dimensional Gaussian Filter
+	const float sigma = (float)size / 5;
+	const float _sigma = sigma * sigma;
+	float temp, sum = 0; //sum for Normalizing
 
-	// optional
+	float *dst = filter.ptr<float>(0);
+	float *_dst = dst + size - 1;
+	for (int i = 0; i < r; i++)
+	{
+		temp = std::exp(-0.5 * (std::pow(r - i, 2)) / _sigma);
+		*dst++ = temp;
+		*_dst-- = temp;
+		sum += temp;
+	}
+	filter.at<float>(0, r) = 1;
+	sum = sum * 2 + 1;
+	filter /= sum;
 
-	return src;
+	return spatialConvolution(spatialConvolution(src, filter.t()), filter);
 }
 
 // convolution in spatial domain by integral images
@@ -277,10 +294,25 @@ return:  convolution result
 */
 Mat Dip3::satFilter(const Mat &src, int size)
 {
+	int r = size / 2;
+	int size_square = size * size;
+	Mat dst(src.size(), CV_32FC1);
+	Mat src_padding(src.rows + size, src.cols + size, CV_32FC1);
+	copyMakeBorder(src, src_padding, r + 1, r, r + 1, r, BORDER_REPLICATE); // One more row in the top and one more column in the left for integral image padding
+	Mat Integral(src_padding.size(), CV_32FC1);
+	integral(src_padding, Integral, CV_32FC1);
 
-	// optional
+	int i, j;
+	for (i = 0; i < dst.rows; i++)
+	{
+		float *dst_data = dst.ptr<float>(i);
+		for (j = 0; j < dst.cols; j++)
+		{
+			*dst_data++ = (Integral.at<float>(i + size, j + size) - Integral.at<float>(i + size, j) - Integral.at<float>(i, j + size) + Integral.at<float>(i, j)) / size_square;
+		}
+	}
 
-	return src;
+	return dst;
 }
 
 /* *****************************
