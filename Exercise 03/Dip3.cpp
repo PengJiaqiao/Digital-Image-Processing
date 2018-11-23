@@ -62,17 +62,15 @@ return   circular shifted matrix
 */
 Mat Dip3::circShift(const Mat &in, int dx, int dy)
 {
-	Mat dst(in.rows, in.cols, CV_32FC1);
-	int i, j;
-	/*Cut source image into 4 parts
+	/*Cut source image into 4 parts (if dx > 0 & dy > 0)
 	0,0-----------------------------cols-1,0
 	-			      -			     	-
-	-		 1	      -		   2     	-
+	-		 0	      -		   1     	-
     -				  -			     	-
 	-				  -			     	-
-	----------cols-dx,rows-dy-----cols-1,rows-dy
+	----------cols-dx,rows-dy(in 3)-----cols-1,rows-dy
 	-				  -			     	-
-	-		 3		  -		   4     	-
+	-		 2		  -		   3     	-
 	-				  -			     	-
 	-				  -			     	-	
 	----------cols-dx,rows-1------cols-1,rows-1
@@ -80,60 +78,42 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 	Cut result image into 4 parts
 	0,0------------dx-1,0----------cols-1,0
 	-			      -			     	-
-	-		 4		  -		   3     	-
+	-		 3		  -		   2     	-
     -				  -			     	-
 	-				  -			     	-
-	0,dy-1--------dx-1,dy-1--------------
+	0,dy-1----dx-1,dy-1(in 3)------------
 	-				  -			     	-
-	-		 2		  -		   1     	-
+	-		 1		  -		   0     	-
 	-				  -			     	-
 	-				  -			     	-	
 	-------------------------------------*/
-	for (i = 0; i < dy; i++)
-	{
-		const float *in_data = in.ptr<float>(in.rows - dy + i);
-		in_data += in.cols - dx;
-		float *dst_data = dst.ptr<float>(i);
-		for (j = 0; j < dx; j++)
-		{
-			*dst_data++ = *in_data++;
-		}
-	}
+	Mat dst(in.rows, in.cols, CV_32FC1);
+	int x, y;
+	// Adjust parameters
+	if (dx > 0)
+		x = dx % in.cols;
+	if (dy > 0)
+		y = dy % in.rows;
+	if (dx < 0)
+		x = dx % in.cols + in.cols;
+	if (dy < 0)
+		y = dy % in.rows + in.rows;
 
-	for (i = 0; i < dy; i++)
-	{
-		const float *in_data = in.ptr<float>(in.rows - dy + i);
-		float *dst_data = dst.ptr<float>(i);
-		dst_data += dx;
-		for (j = dx; j < in.cols; j++)
-		{
-			*dst_data++ = *in_data++;
-		}
-	}
+	Mat tmp0, tmp1, tmp2, tmp3;
+	Mat part0(in, Rect(0, 0, in.cols - x, in.rows - y));
+	Mat part1(in, Rect(in.cols - x, 0, x, in.rows - y));
+	Mat part2(in, Rect(0, in.rows - y, in.cols - x, y));
+	Mat part3(in, Rect(in.cols - x, in.rows - y, x, y));
+	part0.copyTo(tmp0);
+	part1.copyTo(tmp1);
+	part2.copyTo(tmp2);
+	part3.copyTo(tmp3);
+	tmp0.copyTo(in(Rect(x, y, in.cols - x, in.rows - y)));
+	tmp1.copyTo(in(Rect(0, y, x, in.rows - y)));
+	tmp2.copyTo(in(Rect(x, 0, in.cols - x, y)));
+	tmp3.copyTo(in(Rect(0, 0, x, y)));
 
-	for (i = dy; i < in.rows; i++)
-	{
-		const float *in_data = in.ptr<float>(i - dy);
-		in_data += in.cols - dx;
-		float *dst_data = dst.ptr<float>(i);
-		for (j = 0; j < dy; j++)
-		{
-			*dst_data++ = *in_data++;
-		}
-	}
-
-	for (i = dy; i < in.rows; i++)
-	{
-		const float *in_data = in.ptr<float>(i - dy);
-		float *dst_data = dst.ptr<float>(i);
-		dst_data += dx;
-		for (j = dx; j < in.cols; j++)
-		{
-			*dst_data++ = *in_data++;
-		}
-	}
-
-	return dst;
+	return in;
 }
 
 //Performes convolution by multiplication in frequency domain
@@ -144,10 +124,33 @@ return   output image
 */
 Mat Dip3::frequencyConvolution(const Mat &in, const Mat &kernel)
 {
+	// Generate padding kernel with the same size of origin image
+	Mat kernel_padding(in.rows, in.cols, CV_32FC1);
+	int r_top, r_bottom, r_left, r_right;
+	r_top = (in.rows - kernel.rows) / 2;
+	r_bottom = in.rows - kernel.rows - r_top;
+	r_left = (in.cols - kernel.cols) / 2;
+	r_right = in.cols - kernel.cols - r_left;
+	copyMakeBorder(kernel, kernel_padding, r_top, r_bottom, r_left, r_right, BORDER_CONSTANT, 0);
 
-	// TO DO !!!
+	// Centre the kernel
+	kernel_padding = circShift(kernel_padding, in.cols - in.cols / 2, in.rows - in.rows / 2);
+	Mat kernel_planes[] = {Mat_<float>(kernel_padding), Mat::zeros(kernel_padding.size(), CV_32F)};
+	Mat kernel_complex;
+	merge(kernel_planes, 2, kernel_complex);
 
-	return in;
+	Mat in_planes[] = {Mat_<float>(in), Mat::zeros(in.size(), CV_32F)};
+	Mat in_complex;
+	merge(in_planes, 2, in_complex);
+	in_complex /= in.cols*in.rows;
+
+	dft(in_complex, in_complex, DFT_COMPLEX_OUTPUT);
+	dft(kernel_complex, kernel_complex, DFT_COMPLEX_OUTPUT);
+	Mat dst;
+	mulSpectrums(in_complex, kernel_complex, dst, 0);
+	dft(dst, dst, DFT_INVERSE | DFT_REAL_OUTPUT);
+		
+	return dst;
 }
 
 // Performs UnSharp Masking to enhance fine image structures
@@ -192,7 +195,7 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	threshold(edge, edge, thresh, 0, THRESH_TOZERO);
 	edge *= scale;
 	in += edge;
-	
+
 	return in;
 }
 
@@ -301,9 +304,7 @@ Mat Dip3::run(const Mat &in, int smoothType, int size, double thresh, double sca
 	//Fayanjuola, Ayotomiwa Augustus
 	//Long, Zhou
 	//Zhang, Liting
-	Mat img = imread("ycy.jpg", 0);
-	img.convertTo(img, CV_32FC1);
-	imwrite("result.jpg", usm(img, 0, 5, 0, 3));
+	return usm(in, smoothType, size, thresh, scale);
 }
 
 // Performes smoothing operation by convolution
@@ -318,7 +319,7 @@ Mat Dip3::mySmooth(const Mat &in, int size, int type)
 
 	// create filter kernel
 	Mat kernel = createGaussianKernel(size);
-	
+
 	// perform convoltion
 	switch (type)
 	{

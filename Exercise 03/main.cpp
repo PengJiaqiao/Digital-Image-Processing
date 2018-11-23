@@ -18,10 +18,6 @@ using namespace std;
 // usage: path to image in argv[1]
 // main function. loads image, calls test and processing routines, records processing times
 int main(int argc, char** argv) {
-      Dip3 dip;
-      Mat temp(1,1,CV_32FC1);
-      dip.run(temp,1,1,1,1);
-      while(1){};
 
    // check if enough arguments are defined
    if (argc < 2){
@@ -36,7 +32,7 @@ int main(int argc, char** argv) {
 
    // run some test routines
    // NOTE: comment that out for processing only!
-   //dip3.test();
+   dip3.test();
    
    // start processing
    // file to save time measurements
@@ -59,7 +55,7 @@ int main(int argc, char** argv) {
    // parameter of USM
    int numberOfKernelSizes = 10;        // number of differently sized smoothing kernels
    double thresh = 0;                 // threshold on difference necessary to perform operation
-   double scale = 1;                   // scaling of edge enhancement
+   double scale = 3;                   // scaling of edge enhancement
 
    // load image, path in argv[1]
    cout << "Load image: start" << endl;
@@ -114,7 +110,7 @@ int main(int argc, char** argv) {
          // measure starting time
          time = clock();
          // perform unsharp masking
-         Mat tmp = dip3.run(value, type, size, thresh, scale);
+         Mat tmp = dip3.run(value, type, size, thresh, scale);   
          // measure stopping time
          time = (clock() - time);
          // print the ellapsed time
@@ -158,7 +154,7 @@ int main(int argc, char** argv) {
          }
          imshow( win_2, result);
          imwrite((fname.str() + "_enhanced.png").c_str(), result);
-
+         /*
          // produce difference image
          planes.at(2) = abs(tmp - value);
          normalize(planes.at(2), planes.at(2), 0, 255, CV_MINMAX);
@@ -169,7 +165,7 @@ int main(int argc, char** argv) {
          // convert HSV to BGR
          cvtColor(result, result, CV_HSV2BGR);
          imshow( win_3, result);
-         imwrite((fname.str() + "_diff2original.png").c_str(), result);
+         imwrite((fname.str() + "_diff2original.png").c_str(), result);*/
       
          // images will be displayed for 3 seconds
 	 // NOTE: comment that out for faster processing
