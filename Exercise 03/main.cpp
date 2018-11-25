@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
          // measure starting time
          time = clock();
          // perform unsharp masking
-         Mat tmp = dip3.run(value, type, size, thresh, scale);   
+         Mat tmp = dip3.run(value, type, size, thresh, scale);
          // measure stopping time
          time = (clock() - time);
          // print the ellapsed time
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
          }
          imshow( win_2, result);
          imwrite((fname.str() + "_enhanced.png").c_str(), result);
-         
+         /*
          // produce difference image
          planes.at(2) = abs(tmp - value);
          normalize(planes.at(2), planes.at(2), 0, 255, CV_MINMAX);
@@ -165,11 +165,11 @@ int main(int argc, char** argv) {
          // convert HSV to BGR
          cvtColor(result, result, CV_HSV2BGR);
          imshow( win_3, result);
-         imwrite((fname.str() + "_diff2original.png").c_str(), result);
+         imwrite((fname.str() + "_diff2original.png").c_str(), result);*/
       
          // images will be displayed for 3 seconds
 	 // NOTE: comment that out for faster processing
-         cvWaitKey(3000);
+         //cvWaitKey(3000);
          // reset to original
          planes.at(2) = value;
       }

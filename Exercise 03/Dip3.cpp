@@ -180,8 +180,11 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	default:
 		GaussianBlur(in, tmp, Size(floor(size / 2) * 2 + 1, floor(size / 2) * 2 + 1), size / 5., size / 5.);
 	}
+	if (sum(tmp > 255).val[0] > 0)
+	{
+		cout << "ERROR: Dip3::frequencyConvolution(): Convolution result contains too large values!" << endl;
+	}
 
-	threshold(tmp, tmp, 255, 0, THRESH_TRUNC);
 	switch (type)
 	{
 	case 0:
@@ -297,9 +300,9 @@ Mat Dip3::satFilter(const Mat &src, int size)
 	int r = size / 2;
 	int size_square = size * size;
 	Mat dst(src.size(), CV_32FC1);
-	Mat src_padding(src.rows + size, src.cols + size, CV_32FC1);
-	copyMakeBorder(src, src_padding, r + 1, r, r + 1, r, BORDER_REPLICATE); // One more row in the top and one more column in the left for integral image padding
-	Mat Integral(src_padding.size(), CV_32FC1);
+	Mat src_padding(src.rows + 2 * r, src.cols + 2 * r, CV_32FC1);
+	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_REPLICATE); // One more row in the top and one more column in the left for integral image padding
+	Mat Integral(src.rows + 1, src.cols + 1, CV_32FC1);
 	integral(src_padding, Integral, CV_32FC1);
 
 	int i, j;
@@ -311,6 +314,7 @@ Mat Dip3::satFilter(const Mat &src, int size)
 			*dst_data++ = (Integral.at<float>(i + size, j + size) - Integral.at<float>(i + size, j) - Integral.at<float>(i, j + size) + Integral.at<float>(i, j)) / size_square;
 		}
 	}
+	const float *src_data = src.ptr<float>(0);
 
 	return dst;
 }
