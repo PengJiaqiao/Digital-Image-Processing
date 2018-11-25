@@ -114,33 +114,43 @@ return   output image
 */
 Mat Dip3::frequencyConvolution(const Mat &in, const Mat &kernel)
 {
-	// Generate padding kernel with the same size of origin image
-	Mat kernel_padding(in.size(), CV_32FC1);
+	// Expand the image to an optimal size to achieve maximal DFT performance
+	Mat in_padded;
+	int m = getOptimalDFTSize(in.rows);
+	int n = getOptimalDFTSize(in.cols);
+	copyMakeBorder(in, in_padded, 0, m - in.rows, 0, n - in.cols, BORDER_CONSTANT, Scalar::all(0));
+
+	// Generate padded kernel with the same size of padded origin image
+	Mat kernel_padded(in_padded.size(), CV_32FC1);
 	int r_top, r_bottom, r_left, r_right;
-	r_top = (in.rows - kernel.rows) / 2;
-	r_bottom = in.rows - kernel.rows - r_top;
-	r_left = (in.cols - kernel.cols) / 2;
-	r_right = in.cols - kernel.cols - r_left;
-	copyMakeBorder(kernel, kernel_padding, r_top, r_bottom, r_left, r_right, BORDER_CONSTANT, 0);
+	r_bottom = (in.rows - kernel.rows) / 2;
+	r_top = in.rows - kernel.rows - r_bottom;
+	r_right = (in.cols - kernel.cols) / 2;
+	r_left = in.cols - kernel.cols - r_right;
+	r_bottom += m - in.rows; // Corresponding to the optimal size of image
+	r_right += n - in.cols;
+	copyMakeBorder(kernel, kernel_padded, r_top, r_bottom, r_left, r_right, BORDER_CONSTANT, Scalar::all(0));
 
 	// Centre the kernel
-	kernel_padding = circShift(kernel_padding, in.cols - in.cols / 2, in.rows - in.rows / 2);
-	Mat kernel_planes[] = {Mat_<float>(kernel_padding), Mat::zeros(kernel_padding.size(), CV_32F)};
+	kernel_padded = circShift(kernel_padded, in.cols - in.cols / 2, in.rows - in.rows / 2);
+	Mat kernel_planes[] = {Mat_<float>(kernel_padded), Mat::zeros(kernel_padded.size(), CV_32F)};
 	Mat kernel_complex;
 	merge(kernel_planes, 2, kernel_complex);
 
-	Mat in_planes[] = {Mat_<float>(in), Mat::zeros(in.size(), CV_32F)};
+	Mat in_planes[] = {Mat_<float>(in_padded), Mat::zeros(in_padded.size(), CV_32F)};
 	Mat in_complex;
 	merge(in_planes, 2, in_complex);
-	in_complex /= in.cols * in.rows;
+	in_complex /= m * n;
 
 	dft(in_complex, in_complex, DFT_COMPLEX_OUTPUT);
 	dft(kernel_complex, kernel_complex, DFT_COMPLEX_OUTPUT);
 	Mat dst;
+
 	mulSpectrums(in_complex, kernel_complex, dst, 0);
 	dft(dst, dst, DFT_INVERSE | DFT_REAL_OUTPUT);
+	dst = circShift(dst, n - in.cols, m - in.rows); // Adjust dst image and crop it later to origin size
 
-	return dst;
+	return dst(Rect(0, 0, in.cols, in.rows));
 }
 
 // Performs UnSharp Masking to enhance fine image structures
@@ -184,7 +194,7 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	/*if (sum(tmp > 255).val[0] > 0)
 	{
 		cout << "ERROR: Dip3::frequencyConvolution(): Convolution result contains too large values!" << endl;
-	}
+	}*/
 
 	switch (type)
 	{
@@ -200,14 +210,14 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	case 3:
 		imwrite("integralImage.jpg", tmp);
 		break;
-	}*/
+	}
 
 	Mat edge = in - tmp;
 	threshold(edge, edge, thresh, 0, THRESH_TOZERO);
 	edge *= scale;
-	in += edge;
+	Mat dst = in + edge;
 
-	return in;
+	return dst;
 }
 
 // convolution in spatial domain
@@ -220,8 +230,8 @@ Mat Dip3::spatialConvolution(const Mat &src, const Mat &kernel)
 {
 	Mat dst(src.size(), CV_32FC1);
 	Mat kernel_flipped(kernel.size(), CV_32FC1);
-	Mat src_padding(src.rows + kernel.rows - 1, src.cols + kernel.cols - 1, CV_32FC1);
-	copyMakeBorder(src, src_padding, kernel.rows / 2, kernel.rows / 2, kernel.cols / 2, kernel.cols / 2, BORDER_REPLICATE);
+	Mat src_padded(src.rows + kernel.rows - 1, src.cols + kernel.cols - 1, CV_32FC1);
+	copyMakeBorder(src, src_padded, kernel.rows / 2, kernel.rows / 2, kernel.cols / 2, kernel.cols / 2, BORDER_REPLICATE);
 
 	int i, j, m, n;
 	float temp;
@@ -245,7 +255,7 @@ Mat Dip3::spatialConvolution(const Mat &src, const Mat &kernel)
 			temp = 0;
 			for (m = 0; m < kernel.rows; m++)
 			{
-				const float *src_data = src_padding.ptr<float>(i + m);
+				const float *src_data = src_padded.ptr<float>(i + m);
 				src_data += j;
 				const float *kernel_data = kernel_flipped.ptr<float>(m);
 				for (n = 0; n < kernel.cols; n++)
@@ -301,10 +311,10 @@ Mat Dip3::satFilter(const Mat &src, int size)
 	int r = size / 2;
 	int size_square = size * size;
 	Mat dst(src.size(), CV_32FC1);
-	Mat src_padding(src.rows + 2 * r, src.cols + 2 * r, CV_32FC1);
-	copyMakeBorder(src, src_padding, r, r, r, r, BORDER_REPLICATE); // One more row in the top and one more column in the left for integral image padding
+	Mat src_padded(src.rows + 2 * r, src.cols + 2 * r, CV_32FC1);
+	copyMakeBorder(src, src_padded, r, r, r, r, BORDER_REPLICATE); // One more row in the top and one more column in the left for integral image padded
 	Mat Integral(src.rows + 1, src.cols + 1, CV_32FC1);
-	integral(src_padding, Integral, CV_32FC1);
+	integral(src_padded, Integral, CV_32FC1);
 
 	int i, j;
 	for (i = 0; i < dst.rows; i++)

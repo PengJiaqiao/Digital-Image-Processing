@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
    // run some test routines
    // NOTE: comment that out for processing only!
-   dip3.test();
+   //dip3.test();
    
    // start processing
    // file to save time measurements
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
       int size = 4*s+1;
 
       // either working in spatial or frequency domain
-      for(int type=0; type<4; type++){ // use this line, if you implemented the optional parts
+      for(int type=1; type<2; type++){ // use this line, if you implemented the optional parts
       //for(int type=0; type<2; type++){
          // speak to me
          switch(type){
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
          }
          imshow( win_2, result);
          imwrite((fname.str() + "_enhanced.png").c_str(), result);
-         /*
+         
          // produce difference image
          planes.at(2) = abs(tmp - value);
          normalize(planes.at(2), planes.at(2), 0, 255, CV_MINMAX);
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
          // convert HSV to BGR
          cvtColor(result, result, CV_HSV2BGR);
          imshow( win_3, result);
-         imwrite((fname.str() + "_diff2original.png").c_str(), result);*/
+         imwrite((fname.str() + "_diff2original.png").c_str(), result);
       
          // images will be displayed for 3 seconds
 	 // NOTE: comment that out for faster processing
