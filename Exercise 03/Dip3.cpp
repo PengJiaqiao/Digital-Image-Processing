@@ -180,7 +180,8 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	default:
 		GaussianBlur(in, tmp, Size(floor(size / 2) * 2 + 1, floor(size / 2) * 2 + 1), size / 5., size / 5.);
 	}
-	if (sum(tmp > 255).val[0] > 0)
+	// For test use only
+	/*if (sum(tmp > 255).val[0] > 0)
 	{
 		cout << "ERROR: Dip3::frequencyConvolution(): Convolution result contains too large values!" << endl;
 	}
@@ -199,7 +200,7 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	case 3:
 		imwrite("integralImage.jpg", tmp);
 		break;
-	}
+	}*/
 
 	Mat edge = in - tmp;
 	threshold(edge, edge, thresh, 0, THRESH_TOZERO);
@@ -314,7 +315,6 @@ Mat Dip3::satFilter(const Mat &src, int size)
 			*dst_data++ = (Integral.at<float>(i + size, j + size) - Integral.at<float>(i + size, j) - Integral.at<float>(i, j + size) + Integral.at<float>(i, j)) / size_square;
 		}
 	}
-	const float *src_data = src.ptr<float>(0);
 
 	return dst;
 }
