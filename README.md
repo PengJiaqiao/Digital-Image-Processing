@@ -4,11 +4,10 @@
 Participants learn basic concepts, their theoretical foundation, and the most common algorithms used in digital image processing. After completing the module, participants understand strengths and limitations of different methods, are able to correctly and successfully apply methods and algorithms to real world problems, and are aware of performance criteria.
 
 The homework will be programming exercises (C++ & OpenCV) that have to be handled in groups of 3-4 students.
+
+但我没有队友。之前三个人都是孤儿，NM$L。
 ## Group Member
-[Peng Jiaqiao.](https://github.com/PengJiaqiao)  
-[Long Zhou.](https://github.com/Joevonlong)   
-[Zhang Liting.](https://github.com/Tingcaicai)    
-[Fayanjuola Ayotomiwa.](https://github.com/tomfiger9)    
+[Peng Jiaqiao.](https://github.com/PengJiaqiao)   
 ## Environment
 Ubuntu 16.04, OpenCV 3.4.3
 ## Exercise
@@ -48,7 +47,14 @@ Subtract smoothed image from original, and add difference to original image.
 <img src="https://user-images.githubusercontent.com/26578566/48979120-88860a00-f0b6-11e8-89ed-01d129e2a0f6.jpg" width="1380">    
 **Figure 3-3:** Enhanced Image, Spatial Domain Gaussian Filter - Frequency Domain Gaussian Filter - Separable Gaussian Filter - Box Filter with Integral Image  
 <img src="https://user-images.githubusercontent.com/26578566/48979164-fcc0ad80-f0b6-11e8-8830-c5abbe5878ef.jpg" width="1380">    
-#### TO DO  
-● Theoretical part  
-● Prepare two graphs that describe time behaviour of convolution by usage of spatial and frequency domain  
-● Final report
+#### Time behaviour
+**Figure 3-4:** Time behaviour of convolution by usage of spatial domain (plot by python)  
+● x-direction: filter size  
+● y-direction: number of pixels in input image  
+● z-direction: time  
+<img src="https://user-images.githubusercontent.com/26578566/49160272-b1143b00-f326-11e8-8314-7d626d8c99af.png" width="640">   
+**Figure 3-5:** Time behaviour of convolution by usage of frequency domain (plot by python)  
+● x-direction: filter size  
+● y-direction: number of pixels in input image  
+● z-direction: time  
+<img src="https://user-images.githubusercontent.com/26578566/49160444-0f411e00-f327-11e8-8431-9e4f8c582f20.png" width="640">

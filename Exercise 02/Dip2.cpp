@@ -353,14 +353,14 @@ void Dip2::run(void)
 	//t = clock();
 
 	cout << "reduce noise" << endl;
-	Mat restorated1 = noiseReduction(noise1, "average", 5);
-	Mat restorated2 = noiseReduction(noise2, "average", 5);
+	Mat restorated1 = noiseReduction(noise1, "median", 5);
+	Mat restorated2 = noiseReduction(noise2, "nlm", 35, 24);
 	cout << "done" << endl;
 
 	// save images
 	cout << "save results" << endl;
-	imwrite("restorated1 - average (5x5).jpg", restorated1);
-	imwrite("restorated2 - average (5x5).jpg", restorated2);
+	imwrite("restorated1.jpg", restorated1);
+	imwrite("restorated2.jpg", restorated2);
 	cout << "done" << endl;
 
 	//t = clock() - t;

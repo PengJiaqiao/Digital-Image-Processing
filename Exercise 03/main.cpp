@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
    // run some test routines
    // NOTE: comment that out for processing only!
-   //dip3.test();
+   dip3.test();
    
    // start processing
    // file to save time measurements
@@ -53,9 +53,9 @@ int main(int argc, char** argv) {
    clock_t time;
    
    // parameter of USM
-   int numberOfKernelSizes = 1;        // number of differently sized smoothing kernels
+   int numberOfKernelSizes = 10;        // number of differently sized smoothing kernels
    double thresh = 0;                 // threshold on difference necessary to perform operation
-   double scale = 3;                   // scaling of edge enhancement
+   double scale = 5;                   // scaling of edge enhancement
 
    // load image, path in argv[1]
    cout << "Load image: start" << endl;
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
       int size = 4*s+1;
 
       // either working in spatial or frequency domain
-      for(int type=1; type<2; type++){ // use this line, if you implemented the optional parts
+      for(int type=0; type<4; type++){ // use this line, if you implemented the optional parts
       //for(int type=0; type<2; type++){
          // speak to me
          switch(type){

@@ -80,6 +80,8 @@ Mat Dip3::circShift(const Mat &in, int dx, int dy)
 	Mat dst(in.size(), CV_32FC1);
 	int x, y;
 	// Adjust parameters
+	if (dx == 0 && dy == 0)
+		return in;
 	if (dx >= 0)
 		x = dx % in.cols;
 	else
@@ -148,7 +150,7 @@ Mat Dip3::frequencyConvolution(const Mat &in, const Mat &kernel)
 
 	mulSpectrums(in_complex, kernel_complex, dst, 0);
 	dft(dst, dst, DFT_INVERSE | DFT_REAL_OUTPUT);
-	dst = circShift(dst, n - in.cols, m - in.rows); // Adjust dst image and crop it later to origin size
+	dst = circShift(dst, n - in.cols, 0); // Adjust dst image and crop it later to origin size
 
 	return dst(Rect(0, 0, in.cols, in.rows));
 }
@@ -194,7 +196,7 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	/*if (sum(tmp > 255).val[0] > 0)
 	{
 		cout << "ERROR: Dip3::frequencyConvolution(): Convolution result contains too large values!" << endl;
-	}*/
+	}
 
 	switch (type)
 	{
@@ -210,7 +212,7 @@ Mat Dip3::usm(const Mat &in, int type, int size, double thresh, double scale)
 	case 3:
 		imwrite("integralImage.jpg", tmp);
 		break;
-	}
+	}*/
 
 	Mat edge = in - tmp;
 	threshold(edge, edge, thresh, 0, THRESH_TOZERO);
