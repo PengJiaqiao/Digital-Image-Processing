@@ -4,10 +4,9 @@
 Participants learn basic concepts, their theoretical foundation, and the most common algorithms used in digital image processing. After completing the module, participants understand strengths and limitations of different methods, are able to correctly and successfully apply methods and algorithms to real world problems, and are aware of performance criteria.
 
 The homework will be programming exercises (C++ & OpenCV) that have to be handled in groups of 3-4 students.
-
-但我没有队友。之前三个人都是孤儿，NM$L。
 ## Group Member
 [Peng Jiaqiao.](https://github.com/PengJiaqiao)   
+[Li Huiyuan.](https://github.com/robinmiali)
 ## Environment
 Ubuntu 16.04, OpenCV 3.4.3
 ## Exercise
@@ -58,3 +57,9 @@ Subtract smoothed image from original, and add difference to original image.
 ● y-direction: number of pixels in input image  
 ● z-direction: time  
 <img src="https://user-images.githubusercontent.com/26578566/49160444-0f411e00-f327-11e8-8431-9e4f8c582f20.png" width="640">
+### Exercise 04
+#### Image Restoration  
+● Applies (modified) inverse filter to restore image (e.g. ε=0.05 )  
+● Applies Wiener filter to restore image  
+**Figure 4-1:** Original Image - Degraded Image - Inverse Filter - Wiener Filter  
+<img src="https://user-images.githubusercontent.com/26578566/50699769-19062180-1049-11e9-9b93-b66ec741597f.jpg" width="1496"> 
