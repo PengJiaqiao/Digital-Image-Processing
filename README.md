@@ -62,4 +62,10 @@ Subtract smoothed image from original, and add difference to original image.
 ● Applies (modified) inverse filter to restore image (e.g. ε=0.05 )  
 ● Applies Wiener filter to restore image  
 **Figure 4-1:** Original Image - Degraded Image - Inverse Filter - Wiener Filter  
-<img src="https://user-images.githubusercontent.com/26578566/50699769-19062180-1049-11e9-9b93-b66ec741597f.jpg" width="1496"> 
+<img src="https://user-images.githubusercontent.com/26578566/50699769-19062180-1049-11e9-9b93-b66ec741597f.jpg" width="1496">
+### Exercise 05
+#### Interest Points  
+● Generates kernel that corresponds to the first derivative of a Gaussian  
+● Computes keypoints using structure tensor (Förstner Operator)  
+**Figure 5-1:** Original Image - Image with Keypoints  
+<img src="https://user-images.githubusercontent.com/26578566/51217893-4ea0e980-192a-11e9-8335-4040f7940ed0.jpg" width="1004">
